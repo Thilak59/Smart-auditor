@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Smart Auditor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- PWA: theme color and manifest -->
+  <meta name="theme-color" content="#1e3a8a" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+  <!-- Camera 2D barcode / QR scan library -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+  <style>
+    :root {
+      --bg-pink: #ffe4f0;
+      --blue: #1e3a8a;
+      --blue-soft: #3b82f6;
+      --white: #ffffff;
+      --gray-light: #f9fafb;
+      --gray-border: #d1d5db;
+      --text-dark: #111827;
+    }
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    }
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #ffd6eb, #c7d2fe);
+      min-height: 100vh;
+      color: var(--text-dark);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+    }
+    .app-container {
+      width: 100%;
+      max-width: 1200px;
+      background: var(--bg-pink);
+      border-radius: 1rem;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+      overflow: hidden;
+      border: 2px solid var(--blue);
+    }
+    header {
+      background: linear-gradient(90deg, var(--blue), var(--blue-soft));
+      color: var(--white);
+      padding: 1rem 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      letter-spacing: 0.03em;
+    }
+    header span {
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+    nav {
+      background: rgba(255, 255, 255, 0.7);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--blue-soft);
+    }
+    nav button {
+      border: none;
+      border-radius: 999px;
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: transparent;
+      color: var(--blue);
+      font-weight: 600;
+      transition: background 0.2s, transform 0.1s, box-shadow 0.1s;
+    }
+    nav button.active,
+    nav button:hover {
+      background: var(--blue);
+      color: var(--white);
+      box-shadow: 0 4px 10px rgba(30, 64, 175, 0.4);
+      transform: translateY(-1px);
+    }
+    main {
+      padding: 1rem 1.5rem 1.5rem;
+      background: rgba(255, 255, 255, 0.7);
+    }
+    .section {
+      display: none;
+    }
+    .section.active {
+      display: block;
+    }
+    .card {
+      background: var(--bg-pink);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      border: 1px solid var(--blue-soft);
+      margin-bottom: 1rem;
+    }
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.1rem;
+      color: var(--blue);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .card h2::before {
+      content: "◆";
+      color: var(--blue-soft);
+      font-size: 0.9rem;
+    }
+    .subnav {
+      margin-bottom: 0.75rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .subnav button {
+      border-radius: 999px;
+      border: 1px solid var(--blue-soft);
+      background: var(--gray-light);
+      padding: 0.3rem 0.8rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: var(--blue);
+      font-weight: 500;
+    }
+    .subnav button.active,
+    .subnav button:hover {
+      background: var(--blue-soft);
+      color: var(--white);
+    }
+    .field-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 0.2rem;
+      font-weight: 600;
+      color: var(--blue);
+    }
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 0.4rem 0.5rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--gray-border);
+      background: var(--white);
+      font-size: 0.9rem;
+    }
+    textarea {
+      min-height: 60px;
+      resize: vertical;
+    }
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: 2px solid var(--blue-soft);
+      border-color: transparent;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      border-radius: 999px;
+      padding: 0.4rem 0.9rem;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-right: 0.4rem;
+      margin-bottom: 0.3rem;
+    }
+    .btn-primary {
+      background: var(--blue);
+      color: var(--white);
+    }
+    .btn-secondary {
+      background: var(--blue-soft);
+      color: var(--white);
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--blue-soft);
+      color: var(--blue);
+    }
+    .btn:active {
+      transform: translateY(1px);
+      box-shadow: none;
+    }
+    .pill {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 0.1rem 0.5rem;
+      font-size: 0.7rem;
+      background: var(--blue-soft);
+      color: white;
+      margin-left: 0.3rem;
+    }
+    .info {
+      font-size: 0.8rem;
+      color: #374151;
+      margin-top: 0.4rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+    }
+    th,
+    td {
+      border: 1px solid var(--gray-border);
+      padding: 0.3rem 0.4rem;
+      text-align: left;
+    }
+    th {
+      background: #e0ecff;
+      color: var(--blue);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .table-wrapper {
+      max-height: 300px;
+      overflow: auto;
+      background: var(--bg-pink);
+      border-radius: 0.5rem;
+      border: 1px solid var(--gray-border);
+      margin-top: 0.5rem;
+    }
+    .flex-between {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .search-input {
+      max-width: 260px;
+    }
+    .muted {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+    @media (max-width: 640px) {
+      header h1 {
+        font-size: 1.2rem;
+      }
+      main {
+        padding: 0.75rem 1rem 1rem;
+      }
+    }
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+    .modal-content {
+      background: var(--bg-pink);
+      border-radius: 1rem;
+      padding: 1rem;
+      max-width: 380px;
+      width: 100%;
+      border: 2px solid var(--blue-soft);
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.5);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .modal-header h3 {
+      margin: 0;
+      font-size: 1rem;
+      color: var(--blue);
+    }
+    .modal-close {
+      border: none;
+      background: transparent;
+      font-size: 1.1rem;
+      cursor: pointer;
+      color: var(--blue-soft);
+    }
+    #qrReader {
+      width: 100%;
+      min-height: 260px;
+    }
+    .small-info {
+      font-size: 0.75rem;
+      color: #4b5563;
+      margin-top: 0.25rem;
+    }
+    .inline-btn-group {
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+      margin-top: 0.2rem;
+    }
+    .btn-xs {
+      padding: 0.2rem 0.6rem;
+      font-size: 0.75rem;
+    }
+    /* Summary pills for Manage Sheets */
+    .summary-pill {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      background: #1e3a8a;
+      color: #ffffff;
+      font-size: 0.75rem;
+      margin-right: 0.4rem;
+      margin-top: 0.25rem;
+    }
+    /* Sheet buttons */
+    .sheet-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .sheet-btn {
+      padding: 4px 8px;
+      background: #ffffff;
+      border: 1px solid #1e3a8a;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .sheet-btn.strike {
+      text-decoration: line-through;
+      background: #fca5a5;
+      border-color: #b91c1c;
+      color: #7f1d1d;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <div>
+        <h1>Smart Auditor</h1>
+        <span>Online weight → number of pieces conversion & audit tracking</span>
+      </div>
+      <div>
+        <span class="pill">Dashboard</span>
+      </div>
+    </header>
+
+    <nav>
+      <button class="active" data-section="homeSection">Home</button>
+      <button data-section="fieldAuditorsSection">Field Auditors</button>
+      <button data-section="manageSheetsSection">Manage Audit Sheets</button>
+      <button data-section="auditorsSection">Auditors</button>
+    </nav>
+
+    <main>
+      <!-- HOME -->
+      <section id="homeSection" class="section active">
+        <div class="card">
+          <h2>Welcome to Smart Auditor</h2>
+          <p style="font-size:0.9rem;">Use this tool to:</p>
+          <ul style="font-size:0.85rem; margin-top:0;">
+            <li>Convert <b>gross weight</b> into <b>number of pieces</b> for field audits.</li>
+            <li>Store all counts with <b>date &amp; time</b> automatically.</li>
+            <li>View history, export to <b>Excel (CSV)</b>, and import previous data.</li>
+            <li>Distribute audit sheet ranges to multiple auditors, track returns and pending sheets.</li>
+            <li>Export all auditor data together or by individual auditor.</li>
+            <li>Use <b>camera-based 2D barcode scanning</b> for material details.</li>
+          </ul>
+          <p class="info">
+            All data is stored locally in your browser using <b>localStorage</b>. You can export and
+            back up data as CSV files.
+          </p>
+        </div>
+      </section>
+
+      <!-- FIELD AUDITORS -->
+      <section id="fieldAuditorsSection" class="section">
+        <div class="card">
+          <h2>Field Auditors</h2>
+
+          <div class="subnav">
+            <button class="active" data-fa-tab="faNewCount">New Count</button>
+            <button data-fa-tab="faHistory">History</button>
+            <button data-fa-tab="faImportExport">Export / Import</button>
+          </div>
+
+          <!-- New Count -->
+          <div id="faNewCount" class="fa-tab" style="display:block;">
+            <form id="newCountForm">
+              <div class="field-group">
+                <div>
+                  <label for="faAuditorName">Field auditor name</label>
+                  <input id="faAuditorName" type="text" required />
+                </div>
+                <div>
+                  <label for="faZone">Zone</label>
+                  <input id="faZone" type="text" />
+                </div>
+                <div>
+                  <label for="faMaterialName">Material name</label>
+                  <input id="faMaterialName" type="text" />
+                  <div class="inline-btn-group">
+                    <button type="button" id="btnScanBarcode" class="btn btn-secondary btn-xs">
+                      Scan 2D Barcode (Camera)
+                    </button>
+                    <span class="small-info">
+                      Scan QR / 2D code – result will fill Material name &amp; Barcode.
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <label for="faBarcode">2D Barcode data (optional)</label>
+                  <input id="faBarcode" type="text" />
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div>
+                  <label for="faGrossWeight">Gross weight (kg)</label>
+                  <input id="faGrossWeight" type="number" step="0.0001" min="0" required />
+                </div>
+                <div>
+                  <label for="faBinWeight">Bin weight (kg)</label>
+                  <input id="faBinWeight" type="number" step="0.0001" min="0" required />
+                </div>
+                <div>
+                  <label for="faSamples">No. of samples</label>
+                  <input id="faSamples" type="number" step="1" min="1" required />
+                </div>
+                <div>
+                  <label for="faTotalSampleWeight">Total sample weight (kg)</label>
+                  <input id="faTotalSampleWeight" type="number" step="0.0001" min="0" required />
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div>
+                  <label for="faPieces">No. of pieces (auto)</label>
+                  <input id="faPieces" type="number" readonly />
+                  <div class="info">
+                    Formula: <b>(Gross weight − Bin weight) ÷ (Total sample weight ÷ No. of samples)</b><br />
+                    All values in kg, result rounded to nearest whole number.
+                  </div>
+                </div>
+                <div>
+                  <label for="faRemarks">Remarks</label>
+                  <textarea id="faRemarks"></textarea>
+                </div>
+              </div>
+
+              <div>
+                <button type="button" class="btn btn-secondary" id="btnCalcPieces">Calculate pieces</button>
+                <button type="submit" class="btn btn-primary">Calculate &amp; Save</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- History -->
+          <div id="faHistory" class="fa-tab" style="display:none;">
+            <div class="flex-between">
+              <h3 style="margin:0;font-size:0.95rem;color:var(--blue);">Field count history</h3>
+              <input id="faSearch" class="search-input" type="text"
+                     placeholder="Search by auditor / material / zone" />
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date &amp; Time</th>
+                    <th>Auditor</th>
+                    <th>Zone</th>
+                    <th>Material</th>
+                    <th>Barcode</th>
+                    <th>Gross (kg)</th>
+                    <th>Bin (kg)</th>
+                    <th>Samples</th>
+                    <th>Sample wt (kg)</th>
+                    <th>Pieces</th>
+                    <th>Remarks</th>
+                  </tr>
+                </thead>
+                <tbody id="faHistoryBody"></tbody>
+              </table>
+            </div>
+            <p class="muted">Tip: Use the search box to quickly filter records.</p>
+          </div>
+
+          <!-- Export / Import -->
+          <div id="faImportExport" class="fa-tab" style="display:none;">
+            <div class="card" style="padding:0.75rem; margin-bottom:0.75rem;">
+              <h3 style="margin-top:0;font-size:0.95rem;color:var(--blue);">Export field counts</h3>
+              <button id="btnExportFieldCounts" class="btn btn-primary">
+                Export all field counts (CSV for Excel)
+              </button>
+              <p class="muted">CSV can be opened in Excel and re-imported using the form below.</p>
+            </div>
+
+            <div class="card" style="padding:0.75rem;">
+              <h3 style="margin-top:0;font-size:0.95rem;color:var(--blue);">Import field counts</h3>
+              <input id="faImportFile" type="file" accept=".csv" />
+              <p class="muted">Import CSV exported from Smart Auditor. New records are added to history.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MANAGE AUDIT SHEETS -->
+      <section id="manageSheetsSection" class="section">
+        <div class="card">
+          <h2>Manage Audit Sheets</h2>
+
+          <div class="card" style="margin-bottom:0.75rem;">
+            <h3 style="margin-top:0;font-size:0.95rem;color:var(--blue);">Sheet distribution</h3>
+            <div class="field-group">
+              <div>
+                <label for="msTotalSheets">Total no. of sheets</label>
+                <input id="msTotalSheets" type="number" min="1" step="1" />
+                <div class="info">
+                  Enter total number of sheets and assign start &amp; end sheet ranges to each auditor.
+                </div>
+              </div>
+            </div>
+
+            <div class="flex-between">
+              <div>
+                <span class="summary-pill">Total sheets: <span id="msTotalSheetsLabel">0</span></span>
+                <span class="summary-pill">Total pending: <span id="msTotalPendingLabel">0</span></span>
+              </div>
+              <div>
+                <button id="btnAddAssignment" class="btn btn-secondary">
+                  Add auditor &amp; sheet range
+                </button>
+                <button id="btnRecalcPending" class="btn btn-outline">
+                  Recalculate pending sheets
+                </button>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Auditor name</th>
+                    <th>Start sheet no.</th>
+                    <th>End sheet no.</th>
+                    <th>Returned from sheet</th>
+                    <th>Returned to sheet</th>
+                    <th>Pending sheets</th>
+                    <th>Remove</th>
+                  </tr>
+                </thead>
+                <tbody id="msAssignmentBody"></tbody>
+              </table>
+            </div>
+
+            <div style="margin-top:0.75rem;">
+              <button id="btnSaveSheetBatch" class="btn btn-primary">
+                Save distribution
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="flex-between">
+              <h3 style="margin-top:0;font-size:0.95rem;color:var(--blue);">Distribution history</h3>
+              <button id="btnExportSheetHistory" class="btn btn-secondary">
+                Export history (CSV for Excel)
+              </button>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date &amp; Time</th>
+                    <th>Total sheets</th>
+                    <th>Auditor</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Returned from</th>
+                    <th>Returned to</th>
+                    <th>Pending</th>
+                  </tr>
+                </thead>
+                <tbody id="msHistoryBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- AUDITORS -->
+      <section id="auditorsSection" class="section">
+        <div class="card">
+          <h2>Auditors – Summary &amp; Export</h2>
+
+          <div class="card" style="margin-bottom:0.75rem;">
+            <h3 style="margin-top:0;font-size:0.95rem;color:var(--blue);">
+              Export all auditors data
+            </h3>
+            <button id="btnExportAllFieldCounts" class="btn btn-primary">
+              Export all field auditors data (CSV)
+            </button>
+            <button id="btnExportAllSheetHistory" class="btn btn-secondary">
+              Export all sheet distributions (CSV)
+            </button>
+            <p class="muted">Use these buttons to create complete backups.</p>
+          </div>
+
+          <div class="card">
+            <h3 style="margin-top:0;font-size:0.95rem;color:var(--blue);">Export by auditor</h3>
+            <div class="field-group">
+              <div>
+                <label for="auditorFilterName">Auditor name</label>
+                <input id="auditorFilterName" type="text"
+                       placeholder="Enter auditor name to filter" />
+              </div>
+            </div>
+            <button id="btnExportFieldByAuditor" class="btn btn-primary">
+              Export field counts for this auditor
+            </button>
+            <button id="btnExportSheetsByAuditor" class="btn btn-secondary">
+              Export sheet history for this auditor
+            </button>
+            <p class="muted">Name match is case-insensitive and exact.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Camera 2D Barcode Scanner Modal -->
+  <div id="barcodeModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Scan 2D / QR Barcode</h3>
+        <button type="button" id="btnCloseScanner" class="modal-close">✕</button>
+      </div>
+      <p class="small-info">
+        Align the barcode/QR code in the box. On success, Material name &amp; Barcode will be filled.
+      </p>
+      <div id="qrReader"></div>
+    </div>
+  </div>
+
+  <script>
+/* ========== DOM SHORTCUTS ========== */
+    const faAuditorName = document.getElementById("faAuditorName");
+    const faZone = document.getElementById("faZone");
+    const faMaterialName = document.getElementById("faMaterialName");
+    const faBarcode = document.getElementById("faBarcode");
+    const faGrossWeight = document.getElementById("faGrossWeight");
+    const faBinWeight = document.getElementById("faBinWeight");
+    const faSamples = document.getElementById("faSamples");
+    const faTotalSampleWeight = document.getElementById("faTotalSampleWeight");
+    const faPieces = document.getElementById("faPieces");
+    const faRemarks = document.getElementById("faRemarks");
+    const btnCalcPieces = document.getElementById("btnCalcPieces");
+    const newCountForm = document.getElementById("newCountForm");
+    const faSearch = document.getElementById("faSearch");
+    const faImportFile = document.getElementById("faImportFile");
+
+    const msTotalSheets = document.getElementById("msTotalSheets");
+    const msTotalSheetsLabel = document.getElementById("msTotalSheetsLabel");
+    const msTotalPendingLabel = document.getElementById("msTotalPendingLabel");
+    const btnAddAssignment = document.getElementById("btnAddAssignment");
+    const btnRecalcPending = document.getElementById("btnRecalcPending");
+    const msAssignmentBody = document.getElementById("msAssignmentBody");
+    const btnSaveSheetBatch = document.getElementById("btnSaveSheetBatch");
+    const msHistoryBody = document.getElementById("msHistoryBody");
+
+    const btnExportFieldCounts = document.getElementById("btnExportFieldCounts");
+    const btnExportSheetHistory = document.getElementById("btnExportSheetHistory");
+    const btnExportAllFieldCounts = document.getElementById("btnExportAllFieldCounts");
+    const btnExportAllSheetHistory = document.getElementById("btnExportAllSheetHistory");
+    const auditorFilterName = document.getElementById("auditorFilterName");
+    const btnExportFieldByAuditor = document.getElementById("btnExportFieldByAuditor");
+    const btnExportSheetsByAuditor = document.getElementById("btnExportSheetsByAuditor");
+
+    const barcodeModal = document.getElementById("barcodeModal");
+    const btnScanBarcode = document.getElementById("btnScanBarcode");
+    const btnCloseScanner = document.getElementById("btnCloseScanner");
+
+    /* ========== STORAGE HELPERS ========== */
+    const STORAGE_KEYS = {
+      fieldCounts: "smartAuditor_fieldCounts",
+      sheetBatches: "smartAuditor_sheetBatches",
+    };
+
+    function loadFieldCounts() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.fieldCounts)) || []; }
+      catch { return []; }
+    }
+    function saveFieldCounts(data) {
+      localStorage.setItem(STORAGE_KEYS.fieldCounts, JSON.stringify(data));
+    }
+    function loadSheetBatches() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.sheetBatches)) || []; }
+      catch { return []; }
+    }
+    function saveSheetBatches(data) {
+      localStorage.setItem(STORAGE_KEYS.sheetBatches, JSON.stringify(data));
+    }
+
+    function formatDateTime(iso) {
+      if (!iso) return "";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "";
+      return (
+        d.toLocaleDateString() +
+        " " +
+        d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      );
+    }
+
+    function downloadCSV(filename, csvContent) {
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    /* ========== MAIN NAVIGATION ========== */
+    document.querySelectorAll("nav button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        const id = btn.dataset.section;
+        document.querySelectorAll(".section").forEach(s => {
+          s.classList.toggle("active", s.id === id);
+        });
+      });
+    });
+
+    /* ========== FIELD AUDITORS TABS ========== */
+    document.querySelectorAll("[data-fa-tab]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".subnav button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        const id = btn.dataset.faTab;
+        document.querySelectorAll(".fa-tab").forEach(t => {
+          t.style.display = t.id === id ? "block" : "none";
+        });
+        if (id === "faHistory") renderFaHistory();
+      });
+    });
+
+    /* ========== WEIGHT → PIECES ========== */
+    function calculatePieces() {
+      const gross = parseFloat(faGrossWeight.value || 0);
+      const bin = parseFloat(faBinWeight.value || 0);
+      const samples = parseFloat(faSamples.value || 0);
+      const sampleWeight = parseFloat(faTotalSampleWeight.value || 0);
+
+      if (samples <= 0 || sampleWeight <= 0) {
+        alert("Samples and sample weight must be greater than zero.");
+        return null;
+      }
+      const net = gross - bin;
+      if (net < 0) {
+        alert("Gross weight must be greater than Bin weight.");
+        return null;
+      }
+      const pcs = Math.round(net / (sampleWeight / samples));
+      faPieces.value = pcs;
+      return pcs;
+    }
+
+    btnCalcPieces.addEventListener("click", calculatePieces);
+
+    /* ========== SAVE NEW COUNT + AUTO RESET ========== */
+    newCountForm.addEventListener("submit", e => {
+      e.preventDefault();
+      const pieces = calculatePieces();
+      if (pieces === null) return;
+
+      const record = {
+        id: Date.now(),
+        createdAt: new Date().toISOString(),
+        auditorName: faAuditorName.value.trim(),
+        zone: faZone.value.trim(),
+        materialName: faMaterialName.value.trim(),
+        barcode: faBarcode.value.trim(),
+        gross: parseFloat(faGrossWeight.value),
+        bin: parseFloat(faBinWeight.value),
+        samples: parseFloat(faSamples.value),
+        totalSampleWeight: parseFloat(faTotalSampleWeight.value),
+        pieces,
+        remarks: faRemarks.value.trim(),
+      };
+
+      const list = loadFieldCounts();
+      list.push(record);
+      saveFieldCounts(list);
+      renderFaHistory();
+      alert("Field count saved successfully!");
+
+      // 🔥 AUTO-RESET FORM FOR NEXT COUNT
+      newCountForm.reset();
+      faPieces.value = "";
+    });
+
+    /* ========== FIELD HISTORY ========== */
+    function renderFaHistory(filterText = "") {
+      const tbody = document.getElementById("faHistoryBody");
+      tbody.innerHTML = "";
+      const list = loadFieldCounts();
+      const f = filterText.toLowerCase();
+
+      list
+        .filter(r => {
+          const t = `${r.auditorName} ${r.zone} ${r.materialName} ${r.barcode}`.toLowerCase();
+          return t.includes(f);
+        })
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .forEach(r => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${formatDateTime(r.createdAt)}</td>
+            <td>${r.auditorName}</td>
+            <td>${r.zone}</td>
+            <td>${r.materialName}</td>
+            <td>${r.barcode}</td>
+            <td>${r.gross}</td>
+            <td>${r.bin}</td>
+            <td>${r.samples}</td>
+            <td>${r.totalSampleWeight}</td>
+            <td>${r.pieces}</td>
+            <td>${r.remarks}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+    }
+
+    faSearch.addEventListener("input", e => renderFaHistory(e.target.value));
+
+    /* ========== EXPORT FIELD CSV ========== */
+    btnExportFieldCounts.addEventListener("click", () => {
+      const data = loadFieldCounts();
+      if (!data.length) return alert("No data to export.");
+      const header = [
+        "DateTime",
+        "AuditorName",
+        "Zone",
+        "MaterialName",
+        "Barcode",
+        "Gross",
+        "Bin",
+        "Samples",
+        "SampleWeight",
+        "Pieces",
+        "Remarks",
+      ];
+      const rows = data.map(r => [
+        formatDateTime(r.createdAt),
+        r.auditorName,
+        r.zone,
+        r.materialName,
+        r.barcode,
+        r.gross,
+        r.bin,
+        r.samples,
+        r.totalSampleWeight,
+        r.pieces,
+        r.remarks.replace(/\"/g, '""'),
+      ]);
+      const csv =
+        header.join(",") +
+        "\n" +
+        rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+      downloadCSV("FieldCounts.csv", csv);
+    });
+
+    /* ========== IMPORT FIELD CSV ========== */
+    faImportFile.addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = evt => {
+        const lines = evt.target.result.split(/\r?\n/).filter(x => x.trim());
+        if (lines.length <= 1) return alert("Invalid CSV!");
+        const list = loadFieldCounts();
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(",");
+          if (cols.length < 11) continue;
+          list.push({
+            id: Date.now() + i,
+            createdAt: new Date().toISOString(),
+            auditorName: cols[1],
+            zone: cols[2],
+            materialName: cols[3],
+            barcode: cols[4],
+            gross: Number(cols[5]),
+            bin: Number(cols[6]),
+            samples: Number(cols[7]),
+            totalSampleWeight: Number(cols[8]),
+            pieces: Number(cols[9]),
+            remarks: cols[10],
+          });
+        }
+        saveFieldCounts(list);
+        renderFaHistory();
+        alert("Field counts imported.");
+      };
+      reader.readAsText(file);
+    });
+
+    /* ========== MANAGE AUDIT SHEETS HELPERS ========== */
+    function getSheetRow(assignmentTr) {
+      const next = assignmentTr.nextElementSibling;
+      if (next && next.classList.contains("sheet-row")) return next;
+      return null;
+    }
+
+    function updateSummaryTotals() {
+      const totalSheetsVal = Number(msTotalSheets.value) || 0;
+      msTotalSheetsLabel.textContent = totalSheetsVal;
+
+      let totalPending = 0;
+      document.querySelectorAll("#msAssignmentBody tr.assignment-row").forEach(tr => {
+        const v = Number(tr.querySelector(".msPendingCell").textContent) || 0;
+        totalPending += v;
+      });
+      msTotalPendingLabel.textContent = totalPending;
+    }
+
+    msTotalSheets.addEventListener("input", updateSummaryTotals);
+
+    /* ========== GENERATE SHEET BUTTONS (MAX 20) ========== */
+    function generateSheetButtons(assignmentTr) {
+      const start = Number(assignmentTr.querySelector(".msStart").value);
+      const end = Number(assignmentTr.querySelector(".msEnd").value);
+      const sheetRow = getSheetRow(assignmentTr);
+      if (!sheetRow) return;
+      const container = sheetRow.querySelector(".sheetButtonsContainer");
+      container.innerHTML = "";
+
+      if (!start || !end || start > end) {
+        updatePendingCount(assignmentTr);
+        return;
+      }
+
+      let totalSheets = end - start + 1;
+      if (totalSheets > 20) {
+        alert("Maximum allowed sheet buttons is 20 per auditor.");
+        return;
+      }
+
+      for (let i = start; i <= end; i++) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "sheet-btn";
+        btn.textContent = i;
+        btn.addEventListener("click", () => {
+          btn.classList.toggle("strike");
+          updatePendingCount(assignmentTr);
+          updateSummaryTotals();
+        });
+        container.appendChild(btn);
+      }
+      updatePendingCount(assignmentTr);
+      updateSummaryTotals();
+    }
+
+    /* ========== CALCULATE PENDING (buttons + return range) ========== */
+    function updatePendingCount(assignmentTr) {
+      const start = Number(assignmentTr.querySelector(".msStart").value);
+      const end = Number(assignmentTr.querySelector(".msEnd").value);
+      const rf = Number(assignmentTr.querySelector(".msReturnedFrom").value);
+      const rt = Number(assignmentTr.querySelector(".msReturnedTo").value);
+      const pendingCell = assignmentTr.querySelector(".msPendingCell");
+
+      if (!start || !end || end < start) {
+        pendingCell.textContent = "";
+        return;
+      }
+
+      const total = end - start + 1;
+
+      const sheetRow = getSheetRow(assignmentTr);
+      let returnedByClick = 0;
+      if (sheetRow) {
+        returnedByClick = sheetRow.querySelectorAll(".sheet-btn.strike").length;
+      }
+
+      let returnedByRange = 0;
+      if (rf && rt && rt >= rf) {
+        const rStart = Math.max(start, rf);
+        const rEnd = Math.min(end, rt);
+        if (rEnd >= rStart) {
+          returnedByRange = rEnd - rStart + 1;
+        }
+      }
+
+      const totalReturned = returnedByClick + returnedByRange;
+      const pending = Math.max(total - totalReturned, 0);
+      pendingCell.textContent = pending;
+    }
+
+    /* ========== ADD ASSIGNMENT ROW + SHEET BUTTON ROW ========== */
+    function addAssignmentRow(data = {}) {
+      const tr = document.createElement("tr");
+      tr.classList.add("assignment-row");
+      tr.innerHTML = `
+        <td><input class="msAuditor" value="${data.auditorName || ""}"></td>
+        <td><input class="msStart" type="number" min="1"></td>
+        <td><input class="msEnd" type="number" min="1"></td>
+        <td><input class="msReturnedFrom" type="number" min="1"></td>
+        <td><input class="msReturnedTo" type="number" min="1"></td>
+        <td class="msPendingCell"></td>
+        <td><button type="button" class="btn btn-outline btnRemoveRow">✕</button></td>
+      `;
+
+      const sheetRow = document.createElement("tr");
+      sheetRow.classList.add("sheet-row");
+      sheetRow.innerHTML = `
+        <td colspan="7">
+          <div class="sheet-buttons sheetButtonsContainer"></div>
+        </td>
+      `;
+
+      msAssignmentBody.appendChild(tr);
+      msAssignmentBody.appendChild(sheetRow);
+
+      const startInput = tr.querySelector(".msStart");
+      const endInput = tr.querySelector(".msEnd");
+      const rfInput = tr.querySelector(".msReturnedFrom");
+      const rtInput = tr.querySelector(".msReturnedTo");
+      const removeBtn = tr.querySelector(".btnRemoveRow");
+
+      startInput.addEventListener("input", () => {
+        generateSheetButtons(tr);
+      });
+      endInput.addEventListener("input", () => {
+        generateSheetButtons(tr);
+      });
+      rfInput.addEventListener("input", () => {
+        updatePendingCount(tr);
+        updateSummaryTotals();
+      });
+      rtInput.addEventListener("input", () => {
+        updatePendingCount(tr);
+        updateSummaryTotals();
+      });
+
+      removeBtn.onclick = () => {
+        tr.remove();
+        sheetRow.remove();
+        updateSummaryTotals();
+      };
+    }
+
+    btnAddAssignment.onclick = () => addAssignmentRow();
+
+    btnRecalcPending.onclick = () => {
+      document.querySelectorAll("#msAssignmentBody tr.assignment-row").forEach(tr => {
+        updatePendingCount(tr);
+      });
+      updateSummaryTotals();
+    };
+
+    /* ========== SAVE DISTRIBUTION BATCH ========== */
+    btnSaveSheetBatch.onclick = () => {
+      const total = Number(msTotalSheets.value);
+      if (!total) return alert("Enter total sheets.");
+
+      const rows = document.querySelectorAll("#msAssignmentBody tr.assignment-row");
+      const assignments = [];
+
+      rows.forEach(tr => {
+        const auditorName = tr.querySelector(".msAuditor").value.trim();
+        const start = Number(tr.querySelector(".msStart").value);
+        const end = Number(tr.querySelector(".msEnd").value);
+        const rf = Number(tr.querySelector(".msReturnedFrom").value);
+        const rt = Number(tr.querySelector(".msReturnedTo").value);
+
+        if (!auditorName || !start || !end || end < start) return;
+
+        const totalRange = end - start + 1;
+        updatePendingCount(tr);
+        const pendingVal = Number(tr.querySelector(".msPendingCell").textContent) || 0;
+        const returnedCount = totalRange - pendingVal;
+
+        assignments.push({
+          auditorName,
+          startSheet: start,
+          endSheet: end,
+          returnedFrom: rf || null,
+          returnedTo: rt || null,
+          pending: pendingVal,
+          returnedCount,
+        });
+      });
+
+      if (!assignments.length) {
+        alert("Please add at least one valid auditor sheet range.");
+        return;
+      }
+
+      const batch = {
+        id: Date.now(),
+        createdAt: new Date().toISOString(),
+        totalSheets: total,
+        assignments,
+      };
+
+      const list = loadSheetBatches();
+      list.push(batch);
+      saveSheetBatches(list);
+      renderSheetHistory();
+      updateSummaryTotals();
+      alert("Sheet distribution saved.");
+    };
+
+    /* ========== RENDER SHEET HISTORY ========== */
+    function renderSheetHistory() {
+      msHistoryBody.innerHTML = "";
+      const batches = loadSheetBatches();
+      batches.forEach(b =>
+        b.assignments.forEach(a => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${formatDateTime(b.createdAt)}</td>
+            <td>${b.totalSheets}</td>
+            <td>${a.auditorName}</td>
+            <td>${a.startSheet}</td>
+            <td>${a.endSheet}</td>
+            <td>${a.returnedFrom || ""}</td>
+            <td>${a.returnedTo || ""}</td>
+            <td>${a.pending}</td>
+          `;
+          msHistoryBody.appendChild(tr);
+        })
+      );
+    }
+
+    btnExportSheetHistory.onclick = () => {
+      const batches = loadSheetBatches();
+      if (!batches.length) return alert("No sheet history.");
+      const rows = [];
+      batches.forEach(b =>
+        b.assignments.forEach(a => {
+          rows.push([
+            formatDateTime(b.createdAt),
+            b.totalSheets,
+            a.auditorName,
+            a.startSheet,
+            a.endSheet,
+            a.returnedFrom || "",
+            a.returnedTo || "",
+            a.pending,
+          ]);
+        })
+      );
+      const csv =
+        "Date,Total,Auditor,Start,End,ReturnedFrom,ReturnedTo,Pending\n" +
+        rows.map(r => r.join(",")).join("\n");
+      downloadCSV("SheetHistory.csv", csv);
+    };
+
+    /* ========== AUDITORS EXPORT ========== */
+    btnExportAllFieldCounts.onclick = () => btnExportFieldCounts.click();
+    btnExportAllSheetHistory.onclick = () => btnExportSheetHistory.click();
+
+    btnExportFieldByAuditor.onclick = () => {
+      const name = auditorFilterName.value.trim().toLowerCase();
+      if (!name) return alert("Enter auditor name.");
+      const data = loadFieldCounts().filter(
+        r => (r.auditorName || "").toLowerCase() === name
+      );
+      if (!data.length) return alert("No field data for this auditor.");
+      const header = [
+        "DateTime",
+        "AuditorName",
+        "Zone",
+        "MaterialName",
+        "Barcode",
+        "Gross",
+        "Bin",
+        "Samples",
+        "SampleWeight",
+        "Pieces",
+        "Remarks",
+      ];
+      const rows = data.map(r => [
+        formatDateTime(r.createdAt),
+        r.auditorName,
+        r.zone,
+        r.materialName,
+        r.barcode,
+        r.gross,
+        r.bin,
+        r.samples,
+        r.totalSampleWeight,
+        r.pieces,
+        r.remarks.replace(/\"/g, '""'),
+      ]);
+      const csv =
+        header.join(",") +
+        "\n" +
+        rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+      downloadCSV(`FieldCounts_${name}.csv`, csv);
+    };
+
+    btnExportSheetsByAuditor.onclick = () => {
+      const name = auditorFilterName.value.trim().toLowerCase();
+      if (!name) return alert("Enter auditor name.");
+      const batches = loadSheetBatches();
+      const rows = [];
+      batches.forEach(b =>
+        b.assignments.forEach(a => {
+          if ((a.auditorName || "").toLowerCase() === name) {
+            rows.push([
+              formatDateTime(b.createdAt),
+              b.totalSheets,
+              a.auditorName,
+              a.startSheet,
+              a.endSheet,
+              a.returnedFrom || "",
+              a.returnedTo || "",
+              a.pending,
+            ]);
+          }
+        })
+      );
+      if (!rows.length) return alert("No sheet history for this auditor.");
+      const csv =
+        "Date,Total,Auditor,Start,End,ReturnedFrom,ReturnedTo,Pending\n" +
+        rows.map(r => r.join(",")).join("\n");
+      downloadCSV(`SheetHistory_${name}.csv`, csv);
+    };
+
+    /* ========== CAMERA SCANNER ========== */
+    let qrScanner = null;
+    btnScanBarcode.onclick = () => {
+      barcodeModal.classList.add("active");
+      if (qrScanner) {
+        qrScanner.stop().catch(() => {});
+        qrScanner = null;
+      }
+      qrScanner = new Html5Qrcode("qrReader");
+      qrScanner
+        .start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          txt => {
+            faMaterialName.value = txt;
+            faBarcode.value = txt;
+            alert("Scan successful: " + txt);
+            closeScanner();
+          }
+        )
+        .catch(err => {
+          alert("Camera error: " + err);
+          closeScanner();
+        });
+    };
+
+    function closeScanner() {
+      barcodeModal.classList.remove("active");
+      if (qrScanner) {
+        qrScanner.stop().catch(() => {});
+        qrScanner.clear().catch(() => {});
+        qrScanner = null;
+      }
+    }
+
+    btnCloseScanner.onclick = closeScanner;
+    barcodeModal.onclick = e => {
+      if (e.target === barcodeModal) closeScanner();
+    };
+
+    /* ========== PWA SERVICE WORKER ========== */
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("service-worker.js")
+        .catch(err => console.log("SW registration failed", err));
+    }
+
+    /* ========== INITIAL RENDER ========== */
+    renderFaHistory();
+    renderSheetHistory();
+    updateSummaryTotals();
+  </script>
+</body>
+</html>
